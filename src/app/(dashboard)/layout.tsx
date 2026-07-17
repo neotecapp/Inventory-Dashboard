@@ -11,6 +11,7 @@ const NAV_ITEMS = [
   // { href: "/monthly-procurement", label: "Monthly Procurement" },
   // { href: "/current-inventory", label: "Current Inventory" },
   { href: "/production-plan", label: "Production Plan" },
+  { href: "/analytics", label: "Analytics" },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {

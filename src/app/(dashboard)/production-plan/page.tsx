@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import Chart from "chart.js/auto";
 import * as XLSX from "xlsx";
 import apiClient from "@/lib/apiClient";
+import posthog from "posthog-js";
 
 interface PlanRow {
   id: number;
@@ -97,7 +98,19 @@ export default function ProductionPlanPage() {
   useEffect(() => { fetchData(month); }, [fetchData, month]);
   useEffect(() => { fetchBomData(); }, [fetchBomData]);
 
-  // Determine days in month
+  // PostHog: Track time spent on this page
+  useEffect(() => {
+    const startTime = Date.now();
+    posthog.capture('production_plan_page_viewed');
+
+    return () => {
+      const timeSpentSeconds = Math.round((Date.now() - startTime) / 1000);
+      posthog.capture('production_plan_time_spent', {
+        time_spent_seconds: timeSpentSeconds,
+        time_spent_formatted: `${Math.floor(timeSpentSeconds / 60)}m ${timeSpentSeconds % 60}s`,
+      });
+    };
+  }, []);  // Determine days in month
   const daysInMonth = useMemo(() => {
     const [y, m] = month.split("-").map(Number);
     return new Date(y, m, 0).getDate();
@@ -475,7 +488,7 @@ export default function ProductionPlanPage() {
             className="input"
             style={{ width: 180 }}
             value={month}
-            onChange={(e) => setMonth(e.target.value)}
+            onChange={(e) => { setMonth(e.target.value); posthog.capture('production_plan_month_changed', { month: e.target.value }); }}
           />
           <button onClick={() => fetchData(month)} className="btn btn-secondary">↻ Refresh</button>
         </div>
@@ -619,8 +632,8 @@ export default function ProductionPlanPage() {
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             {!bomLoading && filteredBom.length > 0 && (
               <>
-                <button onClick={() => exportBomData("xlsx")} className="btn btn-secondary" style={{ fontSize: 11, padding: "5px 10px" }}>⬇ Excel</button>
-                <button onClick={() => exportBomData("csv")} className="btn btn-secondary" style={{ fontSize: 11, padding: "5px 10px" }}>⬇ CSV</button>
+                <button onClick={() => { exportBomData("xlsx"); posthog.capture('bom_exported', { format: 'xlsx', parts_count: filteredBom.length }); }} className="btn btn-secondary" style={{ fontSize: 11, padding: "5px 10px" }}>⬇ Excel</button>
+                <button onClick={() => { exportBomData("csv"); posthog.capture('bom_exported', { format: 'csv', parts_count: filteredBom.length }); }} className="btn btn-secondary" style={{ fontSize: 11, padding: "5px 10px" }}>⬇ CSV</button>
               </>
             )}
             <span className="tag">{bomLoading ? "LOADING..." : `${fmtN(filteredBom.length)} PARTS`}</span>
