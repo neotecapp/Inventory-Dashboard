@@ -67,6 +67,7 @@ export interface CreateUserData {
 
 export interface CreatePermissionData {
   department_id: number;
+  role_id: number;
   module_id: number;
   can_view: boolean;
   can_create: boolean;
@@ -149,18 +150,18 @@ export async function createUser(
 }
 
 /**
- * Insert a module permission for a department
- * Uses INSERT IGNORE — if this department+module combo already exists, skip it
- * This prevents conflicts when multiple users in the same department are registered
+ * Insert a module permission for a department + role combination
+ * Uses INSERT IGNORE — if this department+role+module combo already exists, skip it
+ * This prevents conflicts when multiple users with the same role in the same department are registered
  */
 export async function insertModulePermission(
   data: CreatePermissionData,
   connection: PoolConnection
 ): Promise<void> {
   await connection.execute(
-    `INSERT IGNORE INTO module_permissions (department_id, module_id, can_view, can_create, can_edit, can_delete)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-    [data.department_id, data.module_id, data.can_view, data.can_create, data.can_edit, data.can_delete]
+    `INSERT IGNORE INTO module_permissions (department_id, role_id, module_id, can_view, can_create, can_edit, can_delete)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [data.department_id, data.role_id, data.module_id, data.can_view, data.can_create, data.can_edit, data.can_delete]
   );
 }
 

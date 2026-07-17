@@ -150,6 +150,7 @@ export async function registerUser(input: RegisterUserInput): Promise<RegisterRe
       await insertModulePermission(
         {
           department_id: input.department_id,
+          role_id: input.role_id,
           module_id: perm.module_id,
           can_view: perm.can_view,
           can_create: perm.can_create,

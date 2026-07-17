@@ -77,17 +77,18 @@ export async function getDepartmentById(departmentId: number): Promise<Departmen
 }
 
 /**
- * Get module permissions for a department (joined with modules table for module_name)
+ * Get module permissions for a department + role (joined with modules table for module_name)
  */
-export async function getModulePermissionsByDepartmentId(
-  departmentId: number
+export async function getModulePermissionsByDepartmentAndRole(
+  departmentId: number,
+  roleId: number
 ): Promise<ModulePermissionRow[]> {
   const rows = await query<ModulePermissionRow[]>(
     `SELECT m.module_name, mp.can_view, mp.can_create, mp.can_edit, mp.can_delete
      FROM module_permissions mp
      JOIN modules m ON mp.module_id = m.id
-     WHERE mp.department_id = ?`,
-    [departmentId]
+     WHERE mp.department_id = ? AND mp.role_id = ?`,
+    [departmentId, roleId]
   );
   return rows;
 }

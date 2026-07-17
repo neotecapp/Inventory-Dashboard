@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { useAuthStore } from "@/store/useAuthStore";
+import posthog from 'posthog-js'
+
 
 const NAV_ITEMS = [
   // { href: "/monthly-procurement", label: "Monthly Procurement" },
@@ -23,10 +25,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     else setReady(true);
   }, [router]);
 
-  function handleLogout() {
-    logout();
-    router.replace("/login");
-  }
+    function handleLogout() {
+      posthog.reset();
+      logout();
+      posthog.capture('user_logged_out');
+      router.replace("/login");
+    }
 
   if (!ready) {
     return (

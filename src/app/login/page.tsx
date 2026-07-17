@@ -3,6 +3,9 @@
 import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/useAuthStore";
+import posthog from 'posthog-js'
+
+
 
 export default function LoginPage() {
   const router = useRouter();
@@ -32,6 +35,15 @@ export default function LoginPage() {
       }
 
       setAuth(data.data.token, { name: data.data.user.name, email: data.data.user.email });
+      
+      // PostHog: identify user and track login
+      posthog.identify(data.data.user.email, {
+        name: data.data.user.name,
+        email: data.data.user.email,
+        employee_id: employeeId,
+      });
+      posthog.capture('user_logged_in');
+
       router.push("/production-plan");
     } catch {
       setError("Network error. Please try again.");

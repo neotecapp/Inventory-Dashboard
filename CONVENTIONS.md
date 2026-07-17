@@ -17,15 +17,17 @@ roles            → Admin, Manager, User
 departments      → Planning, Purchase, Inventory, Sales, Finance, Administration
 modules          → Planning, Purchase, Inventory, Production, Sales, Finance, Dashboard
 users            → employee_id, name, email, password_hash, role_id, department_id
-module_permissions → department_id + module_id + can_view/create/edit/delete
+module_permissions → department_id + role_id + module_id + can_view/create/edit/delete
 ```
 
 ### Access Control Logic
 
-- **Admin** (role_name = "Admin", department = "Administration"): Full access to all modules. Permission checks are **bypassed** in code.
-- **Manager/User**: Access determined by their `department_id` → lookup `module_permissions` for that department.
+- **Admin** (role_name = "Admin"): Full CRUD access to all modules. Permissions are synthesized in code — no rows needed in module_permissions table.
+- **Manager**: Custom permissions stored in `module_permissions` table (department + role + module). Set by admin during profile creation.
+- **User** (role_name = "User"): View-only access. Enforced in code — `can_view=true`, all other flags forced to `false`.
 - Permissions are CRUD-level: `can_view`, `can_create`, `can_edit`, `can_delete`.
 - Every user belongs to a department (including Admin → "Administration").
+- The `module_permissions` table is keyed by `(department_id, role_id, module_id)` — same department, different roles can have different access.
 
 ### User Registration Flow (Frontend UI Order)
 
@@ -381,7 +383,7 @@ Route (Zod validate) → authService.loginUser()
                          ├── comparePassword()
                          ├── getRoleById()
                          ├── getDepartmentById()
-                         ├── getModulePermissionsByDepartmentId()
+                         ├── getModulePermissionsByDepartmentAndRole()
                          ├── updateLastLogin()
                          ├── signToken()
                          └── Return { user, role, department, permissions, token }
@@ -478,7 +480,7 @@ roles (id, role_name, description, created_at)
 departments (id, department_name, description, created_at)
 modules (id, module_name, description, created_at)
 users (id, employee_id, name, email, password_hash, role_id, department_id, is_active, last_login, created_at, updated_at)
-module_permissions (id, department_id, module_id, can_view, can_create, can_edit, can_delete, created_at)
+module_permissions (id, department_id, role_id, module_id, can_view, can_create, can_edit, can_delete, created_at)
 ```
 
 ### Relationships
@@ -487,8 +489,9 @@ module_permissions (id, department_id, module_id, can_view, can_create, can_edit
 users.role_id        → roles.id
 users.department_id  → departments.id
 module_permissions.department_id → departments.id
+module_permissions.role_id      → roles.id
 module_permissions.module_id    → modules.id
-UNIQUE(department_id, module_id) on module_permissions
+UNIQUE(department_id, role_id, module_id) on module_permissions
 ```
 
 ### Seed Data
@@ -501,9 +504,11 @@ Modules: Planning, Purchase, Inventory, Production, Sales, Finance, Dashboard
 
 ### Key Design Decisions
 
-- Permissions are **department-level** (not user-level). All users in a department share permissions.
-- `INSERT IGNORE` prevents conflicts when registering multiple users in the same department.
-- Admin gets full access via **role check in code** — not via module_permissions rows.
+- Permissions are scoped by **department + role** (not just department). Users in the same department with different roles can have different access.
+- **Admin** (role_name = "Admin"): Full CRUD access to all modules — synthesized in code, no rows needed in module_permissions.
+- **Manager**: Custom permissions set by admin during profile creation — stored in module_permissions table.
+- **User** (role_name = "User"): View-only access — enforced in code (can_view=true, all others=false).
+- `INSERT IGNORE` prevents conflicts when registering multiple users with the same role in the same department.
 - Every user has a department (Admin → "Administration").
 - `modules` table exists separately from `departments` to avoid typos and enable renaming.
 

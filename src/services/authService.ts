@@ -14,11 +14,12 @@
 
 import { comparePassword } from "@/lib/password";
 import { signToken } from "@/lib/jwt";
+import { query, RowDataPacket } from "@/lib/db";
 import {
   findUserByEmployeeId,
   getRoleById,
   getDepartmentById,
-  getModulePermissionsByDepartmentId,
+  getModulePermissionsByDepartmentAndRole,
   updateLastLogin,
   ModulePermissionRow,
 } from "@/repository/authRepository";
@@ -100,8 +101,59 @@ export async function loginUser(input: LoginInput): Promise<LoginResult> {
     throw { message: "User department not found", status: 500 };
   }
 
-  // ─── Step 6: Fetch module permissions ────────────────────────────────────
-  const permissions = await getModulePermissionsByDepartmentId(user.department_id);
+  // ─── Step 6: Fetch module permissions (role-based) ─────────────────────────
+  // Admin: full access to all modules (bypass permission table)
+  // Manager: custom permissions from module_permissions table
+  // User: view-only access (override all to can_view=true, rest=false)
+  let permissions: ModulePermissionRow[];
+
+  if (role.role_name === "Admin") {
+    // Admin gets full CRUD on all modules — synthesize permissions
+    const allModules = await query<Array<{ module_name: string } & RowDataPacket>>(
+      "SELECT module_name FROM modules"
+    );
+    permissions = allModules.map((mod) => ({
+      module_name: mod.module_name,
+      can_view: true,
+      can_create: true,
+      can_edit: true,
+      can_delete: true,
+    })) as unknown as ModulePermissionRow[];
+  } else if (role.role_name === "User") {
+    // User gets view-only on their department's modules
+    const deptPermissions = await getModulePermissionsByDepartmentAndRole(
+      user.department_id,
+      user.role_id
+    );
+    if (deptPermissions.length > 0) {
+      // If permissions exist for this dept+role, enforce view-only
+      permissions = deptPermissions.map((p) => ({
+        ...p,
+        can_view: true,
+        can_create: false,
+        can_edit: false,
+        can_delete: false,
+      })) as unknown as ModulePermissionRow[];
+    } else {
+      // Fallback: get all modules and give view-only
+      const allModules = await query<Array<{ module_name: string } & RowDataPacket>>(
+        "SELECT module_name FROM modules"
+      );
+      permissions = allModules.map((mod) => ({
+        module_name: mod.module_name,
+        can_view: true,
+        can_create: false,
+        can_edit: false,
+        can_delete: false,
+      })) as unknown as ModulePermissionRow[];
+    }
+  } else {
+    // Manager: use stored permissions (set by admin during registration)
+    permissions = await getModulePermissionsByDepartmentAndRole(
+      user.department_id,
+      user.role_id
+    );
+  }
 
   // ─── Step 7: Update last_login ───────────────────────────────────────────
   await updateLastLogin(user.id);
