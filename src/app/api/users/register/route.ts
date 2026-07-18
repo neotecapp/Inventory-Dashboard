@@ -4,18 +4,20 @@
  * Registers a new user in the system.
  *
  * This route handler:
- * 1. Parses the JSON request body
- * 2. Validates input using Zod schema
- * 3. Calls the userService to handle business logic
- * 4. Returns appropriate success/error responses
+ * 1. Verifies the request is from an authenticated admin user
+ * 2. Parses the JSON request body
+ * 3. Validates input using Zod schema
+ * 4. Calls the userService to handle business logic
+ * 5. Returns appropriate success/error responses
  *
- * No authentication required for this endpoint (registration is open).
+ * Requires: Admin authentication (JWT with Admin role)
  */
 
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { successResponse, errorResponse } from "@/lib/apiResponse";
 import { registerUser } from "@/services/userService";
+import { getAuthPayload, isAdminUser } from "@/lib/authGuard";
 
 // ─── Validation Schema ──────────────────────────────────────────────────────
 
@@ -41,6 +43,17 @@ const registerSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    // Step 0: Verify admin authentication
+    const payload = getAuthPayload(request);
+    if (!payload) {
+      return errorResponse("Unauthorized — please log in", 401);
+    }
+
+    const adminCheck = await isAdminUser(payload);
+    if (!adminCheck) {
+      return errorResponse("Forbidden — admin access required", 403);
+    }
+
     // Step 1: Parse request body
     const body = await request.json();
 

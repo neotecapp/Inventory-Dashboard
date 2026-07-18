@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import apiClient from "@/lib/apiClient";
+import { useAuthStore } from "@/store/useAuthStore";
 
 interface AnalyticsData {
   pageViews: number;
@@ -44,6 +46,15 @@ export default function AnalyticsPage() {
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+  const { isAdmin, user } = useAuthStore();
+
+  // Admin guard
+  useEffect(() => {
+    if (user && !isAdmin()) {
+      router.replace("/production-plan");
+    }
+  }, [user, isAdmin, router]);
 
   const fetchAnalytics = useCallback(async () => {
     try {

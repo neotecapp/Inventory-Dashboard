@@ -1,12 +1,13 @@
 /**
  * POST /api/auth/register
  * =======================
- * User registration endpoint.
+ * User registration endpoint (admin-only).
  */
 
 import { NextRequest } from "next/server";
 import { successResponse, errorResponse } from "@/lib/apiResponse";
 import { registerUser } from "@/services/userService";
+import { getAuthPayload, isAdminUser } from "@/lib/authGuard";
 import { z } from "zod";
 
 const registerSchema = z.object({
@@ -27,6 +28,17 @@ const registerSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    // Verify admin authentication
+    const payload = getAuthPayload(request);
+    if (!payload) {
+      return errorResponse("Unauthorized — please log in", 401);
+    }
+
+    const adminCheck = await isAdminUser(payload);
+    if (!adminCheck) {
+      return errorResponse("Forbidden — admin access required", 403);
+    }
+
     const body = await request.json();
     const parsed = registerSchema.safeParse(body);
 

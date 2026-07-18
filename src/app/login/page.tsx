@@ -34,7 +34,12 @@ export default function LoginPage() {
         return;
       }
 
-      setAuth(data.data.token, { name: data.data.user.name, email: data.data.user.email });
+      setAuth(data.data.token, {
+        name: data.data.user.name,
+        email: data.data.user.email,
+        roleId: data.data.role.id,
+        roleName: data.data.role.role_name,
+      });
       
       // PostHog: identify user and track login
       posthog.identify(data.data.user.email, {
