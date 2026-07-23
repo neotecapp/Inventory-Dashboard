@@ -117,6 +117,16 @@ export async function fetchBikes() {
   return rows;
 }
 
+export async function fetchBikesWithParent() {
+  const sql = `
+    SELECT b.bike_code, b.bike_name, b.bike_type, b.parent_id, pb.name AS parent_bike_name
+    FROM bike b
+    LEFT JOIN parent_bikes pb ON b.parent_id = pb.id
+  `;
+  const [rows] = await pool.execute<RowDataPacket[]>(sql);
+  return rows;
+}
+
 // ─── Production Data (MySQL - revolt_sales_rawdata) ─────────────────────────
 
 export async function fetchProductionData() {

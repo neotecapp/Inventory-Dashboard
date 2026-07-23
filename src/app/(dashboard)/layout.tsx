@@ -11,6 +11,7 @@ const NAV_ITEMS = [
   // { href: "/monthly-procurement", label: "Monthly Procurement" },
   // { href: "/current-inventory", label: "Current Inventory" },
   { href: "/production-plan", label: "Production Plan" },
+  { href: "/yearly-production", label: "Yearly Production" },
 ];
 
 const ADMIN_NAV_ITEMS = [

@@ -2,6 +2,25 @@
  * SQL Queries
  * ===========
  * Centralized query definitions for inventory and procurement modules.
+ *
+ * Database Schema Reference (MySQL 8.4 – inventory_dashboard):
+ * ─────────────────────────────────────────────────────────────
+ * bike            : id, bike_code, bike_name, bike_type(FG|SFG), parent_id → parent_bikes
+ * bike_colors     : id, color_name, color_code
+ * bike_model_colors: id, bike_model_id → bike_models, bike_color_id → bike_colors
+ * bike_models     : id, model_name, description, is_active
+ * category        : id, name, updated_by
+ * departments     : id, department_name, description
+ * module_permissions: id, department_id, role_id, module_id, can_view/create/edit/delete
+ * modules         : id, module_name, description
+ * monthly_production_plan: id, bike_model_id → bike, month(date), data(json)
+ * nature          : id, name, updated_by
+ * parent_bikes    : id, name
+ * part            : id, nature_id, category_id, part_no, part_description, supplier_id, inventory_level, moq
+ * roles           : id, role_name, description
+ * supplier        : id, name
+ * users           : id, employee_id, name, email, password_hash, role_id, department_id, is_active, last_login
+ * yearly_bike_production: id, month(date), data(json), parent_id → parent_bikes
  */
 
 // ─── Warehouse Wise Inventory (MSSQL / SAP B1) ──────────────────────────────
@@ -137,3 +156,36 @@ ORDER BY ComponentCode, FGCode
 // ─── Production Plan – Daily Breakdown (MySQL / inventory_dashboard) ─────────
 // Now handled by productionPlanRepository.ts using the monthly_production_plan
 // table with JSON `data` column. The old query is no longer needed.
+
+// ─── Yearly Bike Production (MySQL / inventory_dashboard) ────────────────────
+// Handled by yearlyProductionRepository.ts using the yearly_bike_production
+// table joined with parent_bikes for bike names.
+
+export const YEARLY_BIKE_PRODUCTION_BY_YEAR = `
+SELECT
+  ybp.id,
+  ybp.month,
+  ybp.data,
+  ybp.parent_id,
+  pb.name AS parent_bike_name
+FROM yearly_bike_production ybp
+LEFT JOIN parent_bikes pb ON ybp.parent_id = pb.id
+WHERE YEAR(ybp.month) = ?
+ORDER BY ybp.month ASC
+`;
+
+export const YEARLY_BIKE_PRODUCTION_ALL = `
+SELECT
+  ybp.id,
+  ybp.month,
+  ybp.data,
+  ybp.parent_id,
+  pb.name AS parent_bike_name
+FROM yearly_bike_production ybp
+LEFT JOIN parent_bikes pb ON ybp.parent_id = pb.id
+ORDER BY ybp.month DESC
+`;
+
+export const PARENT_BIKES_ALL = `
+SELECT id, name FROM parent_bikes ORDER BY name
+`;

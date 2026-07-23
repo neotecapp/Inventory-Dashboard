@@ -13,6 +13,7 @@ import {
   fetchFullBomAllBikes,
   fetchPartDetails,
   fetchBikes,
+  fetchBikesWithParent,
   fetchProductionData,
   fetchWareHouseInventory,
 } from "@/repository/inventoryRepository";
@@ -209,4 +210,127 @@ export async function getFullBomWithPartDetails() {
 
   logger.info(`InventoryService: Full BOM part-wise. Total parts: ${result.length}, Bikes in DB: ${bikes.length}`);
   return { parts: result, productionData };
+}
+
+// ─── BOM with Parent Bike Mapping (for Yearly Production Page) ───────────────
+
+export async function getBomWithParentBikeMapping() {
+  const [bomData, partDetails, bikesWithParent, warehouseInventory] = await Promise.all([
+    fetchFullBomAllBikes(),
+    fetchPartDetails(),
+    fetchBikesWithParent(),
+    fetchWareHouseInventory(),
+  ]);
+
+  // Build lookup map from MySQL part details keyed by part_no
+  const partMap = new Map<
+    string,
+    { nature: string; category: string; supplier: string; part_description: string; inventory_level: number; moq: number }
+  >();
+
+  for (const part of partDetails) {
+    partMap.set(part.part_no, {
+      nature: part.nature,
+      category: part.category,
+      supplier: part.supplier,
+      part_description: part.part_description,
+      inventory_level: Number(part.inventory_level ?? 0),
+      moq: Number(part.moq ?? 0),
+    });
+  }
+
+  // Build warehouse inventory map
+  const warehouseInventoryMap = new Map<string, number>();
+  for (const item of warehouseInventory) {
+    warehouseInventoryMap.set(item.ItemCode as string, Number(item["Warehouse Qty"] ?? 0));
+  }
+
+  // Build bike → parent_bike mapping (bike_code → parent_bike_name)
+  const bikeToParentMap = new Map<string, string>();
+  const bikeCodeToNameMap = new Map<string, string>();
+  for (const bike of bikesWithParent) {
+    bikeCodeToNameMap.set(bike.bike_code, bike.bike_name);
+    if (bike.parent_bike_name) {
+      bikeToParentMap.set(bike.bike_code, bike.parent_bike_name);
+    }
+  }
+
+  // Also build a set of parent bike names for fallback matching via FG Description
+  const parentBikeNames = new Set<string>();
+  for (const bike of bikesWithParent) {
+    if (bike.parent_bike_name) {
+      parentBikeNames.add(bike.parent_bike_name);
+    }
+  }
+
+  // Group BOM data by Component Code, aggregating by parent bike
+  // Since all color variants share the same BOM qty, we take only one qty per parent bike per part
+  const partBomMap = new Map<
+    string,
+    {
+      description: string;
+      parentBikeQty: Map<string, number>; // parent_bike_name → bom_qty (deduplicated)
+    }
+  >();
+
+  for (const row of bomData as Record<string, unknown>[]) {
+    const componentCode = row["Component Code"] as string;
+    const fgCode = row["FG Code"] as string;
+    const fgDescription = row["FG Description"] as string;
+    const bomQty = Number(row["BOM Qty"] ?? 0);
+    const componentDescription = row["Component Description"] as string;
+
+    if (!partBomMap.has(componentCode)) {
+      partBomMap.set(componentCode, { description: componentDescription, parentBikeQty: new Map() });
+    }
+
+    // Map the FG bike variant to its parent bike
+    let parentBikeName = bikeToParentMap.get(fgCode);
+
+    // Fallback: if bike_code not found in MySQL, try matching FG Description against known parent bike names
+    if (!parentBikeName && fgDescription) {
+      for (const pName of parentBikeNames) {
+        if (fgDescription.toLowerCase().includes(pName.toLowerCase()) || pName.toLowerCase().includes(fgDescription.toLowerCase())) {
+          parentBikeName = pName;
+          break;
+        }
+      }
+    }
+
+    if (parentBikeName) {
+      const entry = partBomMap.get(componentCode)!;
+      // Since all variants under the same parent have identical BOM qty,
+      // just set once (don't accumulate)
+      if (!entry.parentBikeQty.has(parentBikeName)) {
+        entry.parentBikeQty.set(parentBikeName, bomQty);
+      }
+    }
+  }
+
+  // Build final part-wise response aggregated by parent bike
+  const parts = Array.from(partBomMap.entries()).map(([partNo, bomInfo]) => {
+    const partInfo = partMap.get(partNo);
+    const warehouseQty = warehouseInventoryMap.get(partNo) ?? 0;
+
+    // Convert parent bike qty map to object
+    const parentBikes: Record<string, number> = {};
+    bomInfo.parentBikeQty.forEach((qty, parentName) => {
+      parentBikes[parentName] = qty;
+    });
+
+    return {
+      part_no: partNo,
+      part_description: partInfo?.part_description ?? bomInfo.description,
+      nature: partInfo?.nature ?? null,
+      category: partInfo?.category ?? null,
+      supplier: partInfo?.supplier ?? null,
+      inventory_level: partInfo?.inventory_level ?? null,
+      moq: partInfo?.moq ?? null,
+      warehouse_qty: warehouseQty,
+      parent_bikes: parentBikes,
+    };
+  });
+
+  logger.info(`InventoryService: BOM parent-bike mapping. Total parts: ${parts.length}, Parent bikes matched: ${[...parentBikeNames].join(', ')}`);
+  return parts;
 }
