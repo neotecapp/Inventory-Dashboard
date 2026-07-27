@@ -6,6 +6,7 @@ interface AuthUser {
     roleId: number;
     roleName: string;
     departmentId: string;
+    departmentName: string;
     permissions: Permissions;
 
 }
@@ -22,6 +23,7 @@ interface AuthStore{
     setAuth:(token:string, user:AuthUser)=>void;
     logout: ()=> void;
     isAdmin: ()=> boolean;
+    canEditProductionPlan: ()=> boolean;
 }
 
 export const useAuthStore= create<AuthStore>(
@@ -41,5 +43,12 @@ export const useAuthStore= create<AuthStore>(
         isAdmin: () => {
             const user = get().user;
             return user?.roleName === "Admin";
+        },
+        canEditProductionPlan: () => {
+            const user = get().user;
+            if (!user) return false;
+            if (user.roleName === "Admin") return true;
+            if (user.departmentName?.toLowerCase() === "sales") return true;
+            return false;
         },
     }));

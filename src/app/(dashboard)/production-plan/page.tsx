@@ -6,6 +6,7 @@ import Chart from "chart.js/auto";
 import * as XLSX from "xlsx";
 import apiClient from "@/lib/apiClient";
 import posthog from "posthog-js";
+import { useAuthStore } from "@/store/useAuthStore";
 
 interface PlanRow {
   id: number;
@@ -41,6 +42,7 @@ function fmtN(n: number | null | undefined) {
 }
 
 export default function ProductionPlanPage() {
+  const { canEditProductionPlan } = useAuthStore();
   const [plans, setPlans] = useState<PlanRow[]>([]);
   const [models, setModels] = useState<BikeModel[]>([]);
   const [month, setMonth] = useState(getCurrentMonth());
@@ -491,7 +493,7 @@ export default function ProductionPlanPage() {
             value={month}
             onChange={(e) => { setMonth(e.target.value); posthog.capture('production_plan_month_changed', { month: e.target.value }); }}
           />
-          <Link href={`/production-plan/edit?month=${month}`} className="btn btn-accent" style={{ textDecoration: "none" }}>✏️ Add / Edit Plan</Link>
+          {canEditProductionPlan() && <Link href={`/production-plan/edit?month=${month}`} className="btn btn-accent" style={{ textDecoration: "none" }}>✏️ Add / Edit Plan</Link>}
           <button onClick={() => fetchData(month)} className="btn btn-secondary">↻ Refresh</button>
         </div>
       </div>

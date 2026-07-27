@@ -11,7 +11,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { productionPlanService } from "@/services/productionPlanService";
-import { getAuthPayload } from "@/lib/authGuard";
+import { getAuthPayload, canEditProductionPlan } from "@/lib/authGuard";
 import { successResponse, errorResponse } from "@/lib/apiResponse";
 import { z } from "zod";
 
@@ -59,6 +59,11 @@ export async function POST(request: NextRequest) {
       return errorResponse("Unauthorized — please log in", 401);
     }
 
+    const hasAccess = await canEditProductionPlan(request);
+    if (!hasAccess) {
+      return errorResponse("Forbidden — only Admin and Sales department can add/edit production plans", 403);
+    }
+
     const body = await request.json();
     const parsed = createSchema.safeParse(body);
 
@@ -88,6 +93,11 @@ export async function PUT(request: NextRequest) {
       return errorResponse("Unauthorized — please log in", 401);
     }
 
+    const hasAccess = await canEditProductionPlan(request);
+    if (!hasAccess) {
+      return errorResponse("Forbidden — only Admin and Sales department can add/edit production plans", 403);
+    }
+
     const body = await request.json();
     const parsed = updateSchema.safeParse(body);
 
@@ -110,6 +120,11 @@ export async function DELETE(request: NextRequest) {
     const payload = getAuthPayload(request);
     if (!payload) {
       return errorResponse("Unauthorized — please log in", 401);
+    }
+
+    const hasAccess = await canEditProductionPlan(request);
+    if (!hasAccess) {
+      return errorResponse("Forbidden — only Admin and Sales department can delete production plans", 403);
     }
 
     const { searchParams } = new URL(request.url);

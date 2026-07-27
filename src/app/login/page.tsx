@@ -40,6 +40,7 @@ export default function LoginPage() {
         roleId: data.data.role.id,
         roleName: data.data.role.role_name,
         departmentId:data.data.department.id,
+        departmentName: data.data.department.department_name,
         permissions:data.data.permissions,
       });
       

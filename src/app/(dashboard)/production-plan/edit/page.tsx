@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState, useMemo, useCallback } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import apiClient from "@/lib/apiClient";
+import { useAuthStore } from "@/store/useAuthStore";
 
 interface BikeModel {
   id: number;
@@ -27,7 +28,16 @@ function getCurrentMonth(): string {
 
 export default function EditProductionPlanPage() {
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const { canEditProductionPlan } = useAuthStore();
   const initialMonth = searchParams.get("month") || getCurrentMonth();
+
+  // Redirect unauthorized users back to production plan view
+  useEffect(() => {
+    if (!canEditProductionPlan()) {
+      router.replace("/production-plan");
+    }
+  }, [canEditProductionPlan, router]);
 
   const [month, setMonth] = useState(initialMonth);
   const [models, setModels] = useState<BikeModel[]>([]);
