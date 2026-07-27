@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo, useCallback, useRef } from "react";
+import Link from "next/link";
 import Chart from "chart.js/auto";
 import * as XLSX from "xlsx";
 import apiClient from "@/lib/apiClient";
@@ -490,6 +491,7 @@ export default function ProductionPlanPage() {
             value={month}
             onChange={(e) => { setMonth(e.target.value); posthog.capture('production_plan_month_changed', { month: e.target.value }); }}
           />
+          <Link href={`/production-plan/edit?month=${month}`} className="btn btn-accent" style={{ textDecoration: "none" }}>✏️ Add / Edit Plan</Link>
           <button onClick={() => fetchData(month)} className="btn btn-secondary">↻ Refresh</button>
         </div>
       </div>

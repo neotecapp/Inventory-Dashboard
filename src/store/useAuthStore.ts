@@ -5,8 +5,17 @@ interface AuthUser {
     email: string;
     roleId: number;
     roleName: string;
-}
+    departmentId: string;
+    permissions: Permissions;
 
+}
+interface Permissions{
+    module_name:string,
+    can_view:true;
+    can_create:true;
+    can_edit:true;
+    can_delete:true;
+}
 interface AuthStore{
     token: string| null;
     user: AuthUser | null;

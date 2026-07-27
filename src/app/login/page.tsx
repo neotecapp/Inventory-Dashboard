@@ -39,6 +39,8 @@ export default function LoginPage() {
         email: data.data.user.email,
         roleId: data.data.role.id,
         roleName: data.data.role.role_name,
+        departmentId:data.data.department.id,
+        permissions:data.data.permissions,
       });
       
       // PostHog: identify user and track login

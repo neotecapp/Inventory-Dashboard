@@ -108,7 +108,7 @@ class ProductionPlanRepository {
   }
 
   async getAllBikeModels(): Promise<BikeModel[]> {
-    return query<BikeModel[]>("SELECT id, bike_name AS model_name FROM bike ORDER BY bike_name");
+    return query<BikeModel[]>("SELECT id, bike_name AS model_name FROM bike WHERE status = 1 ORDER BY bike_name");
   }
 }
 

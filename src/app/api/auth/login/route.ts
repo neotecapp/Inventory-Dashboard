@@ -78,13 +78,13 @@ export async function POST(request: NextRequest) {
     const response = successResponse({ ...responseData, token }, "Login successful", 200) as NextResponse;
 
     // Set JWT as HTTP-only secure cookie
-    response.cookies.set("token", token, {
-      httpOnly: true,
-      secure: isProduction,
-      sameSite: "strict",
-      path: "/",
-      maxAge,
-    });
+    // response.cookies.set("token", token, {
+    //   httpOnly: true,
+    //   secure: isProduction,
+    //   sameSite: "strict",
+    //   path: "/",
+    //   maxAge,
+    // });
 
     return response;
   } catch (error: unknown) {
